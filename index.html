@@ -425,6 +425,17 @@
 
             <!-- TAB 4: CUSTOMER VIEW SIMULATOR -->
             <section v-if="activeTab === 'customer'" class="space-y-6">
+                <!-- Customer Mode Banner Notification if accessed via QR URL -->
+                <div v-if="isDirectCustomerView" class="bg-amber-500 text-white px-4 py-2.5 rounded-xl shadow-sm flex items-center justify-between text-xs sm:text-sm font-medium">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-qrcode text-base"></i>
+                        <span>เข้าสู่หน้าเมนูผ่านการสแกน QR Code ({{ selectedTableNumber === 'GENERAL' ? 'เมนูทั่วไป' : 'โต๊ะที่ ' + selectedTableNumber }})</span>
+                    </div>
+                    <button @click="switchToAdminView" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg text-xs font-semibold transition-colors">
+                        สลับเป็นผู้ดูแลร้าน
+                    </button>
+                </div>
+
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div>
                         <h2 class="font-bold text-slate-900 text-lg">จำลองหน้าจอฝั่งลูกค้า (Customer Mobile View)</h2>
@@ -850,6 +861,9 @@
                 const editingItem = ref(null);
                 const newCategoryInput = ref('');
 
+                // Customer mode routing flag
+                const isDirectCustomerView = ref(false);
+
                 // Menu Form
                 const menuForm = ref({
                     name: '',
@@ -1003,8 +1017,9 @@
                         if (!container) return;
                         container.innerHTML = '';
                         
-                        // Target payload URL simulated
-                        const targetUrl = window.location.href.split('#')[0] + `?table=${selectedTableNumber.value}`;
+                        // Construct target URL with view=customer and table parameter
+                        const baseUrl = window.location.origin + window.location.pathname;
+                        const targetUrl = `${baseUrl}?view=customer&table=${selectedTableNumber.value}`;
 
                         new QRCode(container, {
                             text: targetUrl,
@@ -1034,7 +1049,8 @@
                     const printContainer = document.getElementById('print-qrcode-container');
                     if (printContainer) {
                         printContainer.innerHTML = '';
-                        const targetUrl = window.location.href.split('#')[0] + `?table=${selectedTableNumber.value}`;
+                        const baseUrl = window.location.origin + window.location.pathname;
+                        const targetUrl = `${baseUrl}?view=customer&table=${selectedTableNumber.value}`;
                         new QRCode(printContainer, {
                             text: targetUrl,
                             width: 200,
@@ -1046,6 +1062,14 @@
                     setTimeout(() => {
                         window.print();
                     }, 300);
+                };
+
+                const switchToAdminView = () => {
+                    // Remove query parameters from URL without reloading
+                    const newUrl = window.location.origin + window.location.pathname;
+                    window.history.replaceState({}, document.title, newUrl);
+                    isDirectCustomerView.value = false;
+                    activeTab.value = 'info';
                 };
 
                 // Gemini AI Integration
@@ -1213,6 +1237,24 @@
                 }, { deep: true });
 
                 onMounted(() => {
+                    // Read URL query parameters
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const viewParam = urlParams.get('view');
+                    const tableParam = urlParams.get('table');
+
+                    // If table parameter exists in URL
+                    if (tableParam) {
+                        if (tableParam === 'GENERAL' || !isNaN(parseInt(tableParam))) {
+                            selectedTableNumber.value = tableParam === 'GENERAL' ? 'GENERAL' : parseInt(tableParam);
+                        }
+                    }
+
+                    // Check if view=customer exists in URL
+                    if (viewParam === 'customer') {
+                        isDirectCustomerView.value = true;
+                        activeTab.value = 'customer';
+                    }
+
                     generateQR();
                 });
 
@@ -1240,6 +1282,8 @@
                     editingItem,
                     newCategoryInput,
                     menuForm,
+                    isDirectCustomerView,
+                    switchToAdminView,
                     aiPromptDish,
                     isAiLoading,
                     aiDishesResult,
