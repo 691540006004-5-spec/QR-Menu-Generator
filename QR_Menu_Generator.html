@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Menu Generator - ระบบสร้างเมนูร้านอาหารและ QR Code</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts Prompt & Kanit -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .phone-mockup {
+            border: 12px solid #1e293b;
+            border-radius: 36px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+    <div id="app" class="min-h-screen flex flex-col">
+        
+        <!-- Navigation Header -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-30 no-print shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md">
+                            <i class="fa-solid fa-utensils text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="font-bold text-lg leading-tight text-slate-900">QR Menu Studio</h1>
+                            <p class="text-xs text-slate-500">ระบบสร้างเมนูอาหารและ QR Code สำหรับร้านค้า</p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Tabs -->
+                    <nav class="hidden md:flex space-x-1 bg-slate-100 p-1 rounded-xl">
+                        <button @click="activeTab = 'info'" :class="activeTab === 'info' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'" class="px-4 py-2 text-sm rounded-lg transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-store"></i>
+                            <span>1. ข้อมูลร้าน</span>
+                        </button>
+                        <button @click="activeTab = 'menu'" :class="activeTab === 'menu' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'" class="px-4 py-2 text-sm rounded-lg transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-list-check"></i>
+                            <span>2. จัดการเมนู</span>
+                            <span class="ml-1 px-1.5 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full font-bold">{{ menuItems.length }}</span>
+                        </button>
+                        <button @click="activeTab = 'qr'" :class="activeTab === 'qr' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'" class="px-4 py-2 text-sm rounded-lg transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-qrcode"></i>
+                            <span>3. QR Code & การ์ดตั้งโต๊ะ</span>
+                        </button>
+                        <button @click="activeTab = 'customer'" :class="activeTab === 'customer' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'" class="px-4 py-2 text-sm rounded-lg transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                            <span>4. มุมมองลูกค้า</span>
+                        </button>
+                        <button @click="activeTab = 'ai'" :class="activeTab === 'ai' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'" class="px-4 py-2 text-sm rounded-lg transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i>
+                            <span>AI ช่วยคิดเมนู</span>
+                        </button>
+                    </nav>
+
+                    <div class="flex items-center space-x-2">
+                        <button @click="loadPresetData" class="px-3 py-1.5 text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 font-medium rounded-lg border border-orange-200 transition-colors flex items-center space-x-1">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span class="hidden sm:inline">โหลดตัวอย่าง</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Navigation -->
+            <div class="md:hidden flex overflow-x-auto border-t border-slate-200 bg-slate-50 p-1 space-x-1 text-xs">
+                <button @click="activeTab = 'info'" :class="activeTab === 'info' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600'" class="px-3 py-2 rounded-lg whitespace-nowrap">1. ร้านค้า</button>
+                <button @click="activeTab = 'menu'" :class="activeTab === 'menu' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600'" class="px-3 py-2 rounded-lg whitespace-nowrap">2. เมนูอาหาร ({{ menuItems.length }})</button>
+                <button @click="activeTab = 'qr'" :class="activeTab === 'qr' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600'" class="px-3 py-2 rounded-lg whitespace-nowrap">3. QR Code</button>
+                <button @click="activeTab = 'customer'" :class="activeTab === 'customer' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600'" class="px-3 py-2 rounded-lg whitespace-nowrap">4. ตัวอย่างลูกค้า</button>
+                <button @click="activeTab = 'ai'" :class="activeTab === 'ai' ? 'bg-white text-orange-600 shadow-sm font-semibold' : 'text-slate-600'" class="px-3 py-2 rounded-lg whitespace-nowrap">✨ AI Assistant</button>
+            </div>
+        </header>
+
+        <!-- Main Content Body -->
+        <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 no-print">
+
+            <!-- TAB 1: STORE INFO -->
+            <section v-if="activeTab === 'info'" class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                    <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                            1
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900">กรอกข้อมูลร้านค้า (Store Information)</h2>
+                            <p class="text-sm text-slate-500">ข้อมูลนี้จะปรากฏที่ด้านบนของหน้าเมนูอาหารเมื่อลูกค้าสแกน QR Code</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Restaurant Name -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อร้านอาหาร <span class="text-red-500">*</span></label>
+                            <input type="text" v-model="store.name" placeholder="เช่น แซ่บอีสาน เมนูต้มแซ่บ" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-slate-800">
+                        </div>
+
+                        <!-- Tagline / Slogan -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">คำขวัญ / สโลแกนร้าน</label>
+                            <input type="text" v-model="store.tagline" placeholder="เช่น รสเด็ด แซ่บถึงใจ วัตถุดิบสดใหม่ทุกวัน" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-slate-800">
+                        </div>
+
+                        <!-- Phone Number -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
+                            <input type="text" v-model="store.phone" placeholder="เช่น 081-234-5678" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-slate-800">
+                        </div>
+
+                        <!-- Wifi Info -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Wi-Fi (รหัสผ่าน)</label>
+                            <input type="text" v-model="store.wifi" placeholder="เช่น WiFi-Guest (Pass: 12345678)" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-slate-800">
+                        </div>
+
+                        <!-- Address -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ที่อยู่ร้าน / สาขา</label>
+                            <textarea v-model="store.address" rows="2" placeholder="เช่น 123/4 ถนนสุขุมวิท กรุงเทพฯ" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-slate-800"></textarea>
+                        </div>
+
+                        <!-- Table Numbers Range -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">จำนวนโต๊ะทั้งหมดในร้าน</label>
+                            <input type="number" v-model.number="store.totalTables" min="1" max="100" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-slate-800">
+                        </div>
+
+                        <!-- Theme Color Picker -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">เลือกโทนสีธีมร้าน</label>
+                            <div class="flex items-center space-x-3">
+                                <button v-for="color in themeColors" :key="color.id" @click="store.themeColor = color.value" class="w-9 h-9 rounded-full flex items-center justify-center transition-transform hover:scale-110 shadow-sm" :style="{ backgroundColor: color.hex }" :title="color.name">
+                                    <i v-if="store.themeColor === color.value" class="fa-solid fa-check text-white text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Step Action -->
+                    <div class="mt-8 pt-4 border-t border-slate-100 flex justify-end">
+                        <button @click="activeTab = 'menu'" class="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold rounded-xl shadow-md flex items-center space-x-2 transition-all">
+                            <span>ถัดไป: เพิ่มรายการอาหาร</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: MENU ITEMS -->
+            <section v-if="activeTab === 'menu'" class="space-y-6">
+                <!-- Header & Action Bar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                            2
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900">เพิ่มรายการอาหาร (Menu Items)</h2>
+                            <p class="text-sm text-slate-500">จัดการหมวดหมู่ เมนูอาหาร และกำหนดราคา</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button @click="openCategoryModal" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-colors text-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-tags"></i>
+                            <span>จัดการหมวดหมู่</span>
+                        </button>
+                        <button @click="openAddMenuModal()" class="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors shadow-sm text-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>เพิ่มรายการอาหาร</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Category Pills Filter -->
+                <div class="flex items-center space-x-2 overflow-x-auto pb-2">
+                    <button @click="selectedCategoryFilter = 'ALL'" :class="selectedCategoryFilter === 'ALL' ? 'bg-orange-500 text-white font-semibold shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'" class="px-4 py-2 rounded-xl text-sm transition-all whitespace-nowrap">
+                        ทั้งหมด ({{ menuItems.length }})
+                    </button>
+                    <button v-for="cat in categories" :key="cat" @click="selectedCategoryFilter = cat" :class="selectedCategoryFilter === cat ? 'bg-orange-500 text-white font-semibold shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'" class="px-4 py-2 rounded-xl text-sm transition-all whitespace-nowrap">
+                        {{ cat }} ({{ menuItems.filter(i => i.category === cat).length }})
+                    </button>
+                </div>
+
+                <!-- Menu Cards Grid -->
+                <div v-if="filteredMenuItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div v-for="(item, idx) in filteredMenuItems" :key="item.id" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+                        <div>
+                            <!-- Item Image or Placeholder -->
+                            <div class="relative h-44 bg-slate-100 overflow-hidden">
+                                <img :src="item.image" :alt="item.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" @error="handleImageError">
+                                <div class="absolute top-3 left-3 flex flex-wrap gap-1">
+                                    <span v-if="item.badge" class="px-2.5 py-1 bg-amber-500 text-white text-xs font-bold rounded-full shadow-sm">
+                                        {{ item.badge }}
+                                    </span>
+                                    <span v-if="item.isSpicy" class="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full shadow-sm">
+                                        🌶️ เผ็ด
+                                    </span>
+                                </div>
+                                <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-slate-900 font-bold text-sm shadow-sm">
+                                    ฿{{ item.price }}
+                                </div>
+                            </div>
+
+                            <!-- Details -->
+                            <div class="p-4 space-y-2">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-slate-900 text-base leading-snug">{{ item.name }}</h3>
+                                    <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md whitespace-nowrap ml-2">{{ item.category }}</span>
+                                </div>
+                                <p class="text-xs text-slate-500 line-clamp-2">{{ item.description || 'ไม่มีคำบรรยาย' }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Card Footer Controls -->
+                        <div class="p-4 pt-0 border-t border-slate-100 mt-2 flex items-center justify-between text-xs">
+                            <span :class="item.available ? 'text-emerald-600 bg-emerald-50 px-2 py-1 rounded' : 'text-slate-400 bg-slate-100 px-2 py-1 rounded'">
+                                {{ item.available ? 'พร้อมขาย' : 'สินค้าหมด' }}
+                            </span>
+                            <div class="flex items-center space-x-2">
+                                <button @click="toggleAvailability(item)" class="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="สลับสถานะ">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                                <button @click="openEditMenuModal(item)" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="แก้ไข">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button @click="deleteMenuItem(item.id)" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="ลบ">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else class="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
+                    <div class="w-16 h-16 mx-auto bg-orange-100 text-orange-500 rounded-full flex items-center justify-center text-2xl mb-4">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">ยังไม่มีรายการอาหารในหมวดหมู่นี้</h3>
+                    <p class="text-sm text-slate-500 mt-1 max-w-sm mx-auto">เริ่มต้นด้วยการเพิ่มเมนูเด็ดของร้าน หรือกดปุ่ม "โหลดตัวอย่าง" เพื่อใช้ข้อมูลตัวอย่าง</p>
+                    <button @click="openAddMenuModal()" class="mt-4 px-5 py-2.5 bg-orange-500 text-white font-semibold rounded-xl text-sm hover:bg-orange-600 transition-colors">
+                        + เพิ่มเมนูใหม่
+                    </button>
+                </div>
+
+                <!-- Next Step Button -->
+                <div class="pt-4 flex justify-between">
+                    <button @click="activeTab = 'info'" class="px-5 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50">
+                        <i class="fa-solid fa-arrow-left mr-2"></i> ย้อนกลับ
+                    </button>
+                    <button @click="activeTab = 'qr'" class="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold rounded-xl shadow-md flex items-center space-x-2">
+                        <span>ถัดไป: สร้าง QR Code</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- TAB 3: QR CODE GENERATOR -->
+            <section v-if="activeTab === 'qr'" class="space-y-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                    <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                            3
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900">สร้างและออกแบบ QR Code สำหรับตั้งโต๊ะ</h2>
+                            <p class="text-sm text-slate-500">ปรับแต่งการ์ด QR Code สำหรับติดหรือตั้งไว้บนโต๊ะอาหารในร้าน</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <!-- Customization Settings -->
+                        <div class="lg:col-span-5 space-y-5">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">เลือกหมายเลขโต๊ะ</label>
+                                <select v-model="selectedTableNumber" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                                    <option value="GENERAL">เมนูทั่วไป (ไม่ระบุโต๊ะ)</option>
+                                    <option v-for="t in store.totalTables" :key="t" :value="t">
+                                        โต๊ะที่ {{ t }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">หัวข้อบนการ์ด</label>
+                                <input type="text" v-model="qrCardTitle" placeholder="สแกนเพื่อดูเมนูอาหาร" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">คำแนะนำสแกน</label>
+                                <input type="text" v-model="qrCardSubtext" placeholder="ใช้กล้องมือถือสแกนเพื่อสั่งอาหาร" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">รูปแบบสไตล์การ์ด</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button @click="cardStyle = 'modern'" :class="cardStyle === 'modern' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-slate-200 text-slate-600'" class="p-3 border rounded-xl text-xs text-center transition-all">
+                                        โมเดิร์น
+                                    </button>
+                                    <button @click="cardStyle = 'classic'" :class="cardStyle === 'classic' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-slate-200 text-slate-600'" class="p-3 border rounded-xl text-xs text-center transition-all">
+                                        เรียบหรู
+                                    </button>
+                                    <button @click="cardStyle = 'minimal'" :class="cardStyle === 'minimal' ? 'border-orange-500 bg-orange-50 text-orange-700 font-semibold' : 'border-slate-200 text-slate-600'" class="p-3 border rounded-xl text-xs text-center transition-all">
+                                        มินิมอล
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-slate-100 flex flex-col space-y-3">
+                                <button @click="downloadQRCode" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-colors shadow flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-download"></i>
+                                    <span>ดาวน์โหลด QR Code (PNG)</span>
+                                </button>
+                                <button @click="printStandee" class="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors shadow flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-print"></i>
+                                    <span>พิมพ์ป้ายตั้งโต๊ะ (Print Standee)</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Card Preview -->
+                        <div class="lg:col-span-7 flex flex-col items-center justify-center bg-slate-50 p-8 rounded-2xl border border-slate-200 min-h-[420px]">
+                            <!-- The Table Standee Card View -->
+                            <div id="standee-card" :class="[
+                                'w-full max-w-sm bg-white p-6 rounded-3xl shadow-xl border border-slate-200 text-center flex flex-col items-center transition-all relative overflow-hidden',
+                                cardStyle === 'modern' ? 'border-t-8 border-t-orange-500' : '',
+                                cardStyle === 'classic' ? 'bg-slate-900 text-white' : 'text-slate-800'
+                            ]">
+                                <!-- Header Logo / Store Name -->
+                                <div class="mb-4 space-y-1">
+                                    <div class="w-12 h-12 mx-auto rounded-2xl bg-orange-500 text-white flex items-center justify-center font-bold text-xl shadow-md mb-2">
+                                        <i class="fa-solid fa-utensils"></i>
+                                    </div>
+                                    <h3 class="font-bold text-xl tracking-tight">{{ store.name || 'ชื่อร้านอาหารของคุณ' }}</h3>
+                                    <p class="text-xs opacity-75">{{ store.tagline || 'อร่อย สะอาด การันตีคุณภาพ' }}</p>
+                                </div>
+
+                                <!-- Table badge if selected -->
+                                <div v-if="selectedTableNumber !== 'GENERAL'" class="mb-4">
+                                    <span class="px-4 py-1.5 bg-orange-100 text-orange-700 font-bold rounded-full text-sm border border-orange-200">
+                                        โต๊ะที่ {{ selectedTableNumber }}
+                                    </span>
+                                </div>
+
+                                <!-- Title Prompt -->
+                                <h4 class="font-bold text-base mb-3 text-orange-500">{{ qrCardTitle }}</h4>
+
+                                <!-- QR Code Canvas / Container -->
+                                <div class="p-4 bg-white rounded-2xl shadow-inner border border-slate-100 flex items-center justify-center my-2">
+                                    <div id="qrcode-container" class="flex items-center justify-center"></div>
+                                </div>
+
+                                <!-- Subtext & Wifi -->
+                                <p class="text-xs opacity-70 mt-3">{{ qrCardSubtext }}</p>
+                                <p v-if="store.wifi" class="text-[11px] opacity-60 mt-2 flex items-center space-x-1">
+                                    <i class="fa-solid fa-wifi text-xs"></i>
+                                    <span>Wi-Fi: {{ store.wifi }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: CUSTOMER VIEW SIMULATOR -->
+            <section v-if="activeTab === 'customer'" class="space-y-6">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h2 class="font-bold text-slate-900 text-lg">จำลองหน้าจอฝั่งลูกค้า (Customer Mobile View)</h2>
+                        <p class="text-xs text-slate-500">นี่คือตัวอย่างอินเทอร์เฟซที่ลูกค้าจะเห็นเมื่อสแกน QR Code</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-slate-500">จำลองหมายเลขโต๊ะ:</span>
+                        <select v-model="selectedTableNumber" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 font-semibold">
+                            <option value="GENERAL">เมนูทั่วไป</option>
+                            <option v-for="t in store.totalTables" :key="t" :value="t">โต๊ะที่ {{ t }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Smartphone Mockup Wrapper -->
+                <div class="flex justify-center my-4">
+                    <div class="phone-mockup w-full max-w-md bg-slate-50 min-h-[720px] flex flex-col overflow-hidden relative shadow-2xl">
+                        
+                        <!-- Customer View Header -->
+                        <div class="bg-gradient-to-r from-orange-500 to-amber-600 text-white p-5 shadow-md">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="font-bold text-lg leading-tight">{{ store.name }}</h3>
+                                    <p class="text-xs opacity-90 font-light">{{ store.tagline }}</p>
+                                </div>
+                                <span v-if="selectedTableNumber !== 'GENERAL'" class="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full font-bold backdrop-blur-sm">
+                                    โต๊ะ {{ selectedTableNumber }}
+                                </span>
+                            </div>
+
+                            <!-- Search bar -->
+                            <div class="relative mt-2">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                                <input type="text" v-model="customerSearchQuery" placeholder="ค้นหาเมนูอร่อย..." class="w-full pl-8 pr-4 py-1.5 rounded-xl bg-white text-slate-800 text-xs outline-none shadow-inner">
+                            </div>
+                        </div>
+
+                        <!-- Category Filter Tabs in Mobile -->
+                        <div class="bg-white border-b border-slate-200 px-3 py-2 flex space-x-2 overflow-x-auto text-xs no-scrollbar">
+                            <button @click="customerCategoryFilter = 'ALL'" :class="customerCategoryFilter === 'ALL' ? 'bg-orange-500 text-white font-bold' : 'bg-slate-100 text-slate-600'" class="px-3 py-1.5 rounded-full whitespace-nowrap">
+                                ทั้งหมด
+                            </button>
+                            <button v-for="cat in categories" :key="cat" @click="customerCategoryFilter = cat" :class="customerCategoryFilter === cat ? 'bg-orange-500 text-white font-bold' : 'bg-slate-100 text-slate-600'" class="px-3 py-1.5 rounded-full whitespace-nowrap">
+                                {{ cat }}
+                            </button>
+                        </div>
+
+                        <!-- Customer Menu Item List -->
+                        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                            <div v-for="item in customerMenuItems" :key="item.id" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex space-x-3 items-center">
+                                <img :src="item.image" :alt="item.name" class="w-20 h-20 rounded-xl object-cover bg-slate-100" @error="handleImageError">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex justify-between items-start">
+                                        <h4 class="font-bold text-slate-900 text-sm truncate">{{ item.name }}</h4>
+                                        <span class="text-orange-600 font-bold text-sm">฿{{ item.price }}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 line-clamp-2 mt-0.5">{{ item.description }}</p>
+                                    
+                                    <div class="flex justify-between items-center mt-2">
+                                        <div class="flex space-x-1">
+                                            <span v-if="item.badge" class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">{{ item.badge }}</span>
+                                            <span v-if="item.isSpicy" class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">🌶️ เผ็ด</span>
+                                        </div>
+
+                                        <button v-if="item.available" @click="addToCart(item)" class="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-lg transition-transform active:scale-95 shadow-sm">
+                                            + เพิ่ม
+                                        </button>
+                                        <span v-else class="text-[11px] text-slate-400 italic">สินค้าหมด</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Shopping Cart Bar -->
+                        <div v-if="cart.length > 0" class="p-3 bg-white border-t border-slate-200 shadow-lg flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="relative">
+                                    <i class="fa-solid fa-basket-shopping text-orange-500 text-xl"></i>
+                                    <span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                        {{ totalCartItems }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-slate-500">ยอดรวมทั้งหมด</div>
+                                    <div class="font-bold text-slate-900 text-sm">฿{{ totalCartPrice }}</div>
+                                </div>
+                            </div>
+                            <button @click="showOrderModal = true" class="px-4 py-2 bg-orange-500 text-white text-xs font-bold rounded-xl shadow hover:bg-orange-600">
+                                ดูรายการที่สั่ง ({{ cart.length }})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: GEMINI AI ASSISTANT -->
+            <section v-if="activeTab === 'ai'" class="space-y-6">
+                <div class="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 text-white shadow-md">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl">
+                            <i class="fa-solid fa-wand-magic-sparkles text-amber-200"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold">AI Smart Menu Assistant (ช่วยคิดเมนูและคำบรรยาย)</h2>
+                            <p class="text-sm opacity-90">สร้างไอเดียเมนูอาหาร เขียนคำบรรยายชวนหิว หรือช่วยสโลแกนร้านค้าด้วย AI Gemini</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- AI Generator Box 1: Dish Ideas -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                        <h3 class="font-bold text-slate-900 flex items-center space-x-2">
+                            <i class="fa-solid fa-lightbulb text-amber-500"></i>
+                            <span>1. ให้ AI ช่วยคิดเมนูและคำบรรยายชวนชิม</span>
+                        </h3>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">ประเภทอาหารหรือคีย์เวิร์ดที่ต้องการ</label>
+                            <input type="text" v-model="aiPromptDish" placeholder="เช่น อาหารไทยฟิวชั่น, ส้มตำแซ่บ, เครื่องดื่มสมุนไพร" class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <button @click="generateAIDishes" :disabled="isAiLoading" class="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl text-sm transition-colors flex items-center justify-center space-x-2">
+                            <i v-if="isAiLoading" class="fa-solid fa-spinner fa-spin"></i>
+                            <i v-else class="fa-solid fa-sparkles"></i>
+                            <span>{{ isAiLoading ? 'กำลังสร้างไอเดีย...' : 'สร้างไอเดียเมนูเด็ด' }}</span>
+                        </button>
+
+                        <!-- Generated Dish Recommendations -->
+                        <div v-if="aiDishesResult.length > 0" class="mt-4 space-y-3 max-h-80 overflow-y-auto">
+                            <div v-for="(dish, i) in aiDishesResult" :key="i" class="p-3 bg-orange-50/50 rounded-xl border border-orange-100 space-y-1">
+                                <div class="flex justify-between items-start">
+                                    <span class="font-bold text-slate-900 text-sm">{{ dish.name }}</span>
+                                    <span class="text-orange-600 font-bold text-xs">฿{{ dish.price }}</span>
+                                </div>
+                                <p class="text-xs text-slate-600">{{ dish.description }}</p>
+                                <button @click="addAiDishToMenu(dish)" class="mt-2 px-3 py-1 bg-white border border-orange-200 text-orange-600 text-xs font-bold rounded-lg hover:bg-orange-50 transition-colors">
+                                    + เพิ่มลงในรายการอาหาร
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Generator Box 2: Store Slogans -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                        <h3 class="font-bold text-slate-900 flex items-center space-x-2">
+                            <i class="fa-solid fa-quote-left text-orange-500"></i>
+                            <span>2. ให้ AI ช่วยตั้งสโลแกนร้านค้าเด็ดๆ</span>
+                        </h3>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">แนวทางร้านค้า</label>
+                            <input type="text" v-model="aiPromptSlogan" placeholder="เช่น ร้านอาหารต้มแซ่บรสจัดจ้าน หรือ คาเฟ่แนวมินิมอล" class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <button @click="generateAISlogans" :disabled="isAiLoadingSlogan" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-sm transition-colors flex items-center justify-center space-x-2">
+                            <i v-if="isAiLoadingSlogan" class="fa-solid fa-spinner fa-spin"></i>
+                            <i v-else class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>{{ isAiLoadingSlogan ? 'กำลังคิดสโลแกน...' : 'สร้างสโลแกนโดนใจ' }}</span>
+                        </button>
+
+                        <div v-if="aiSlogansResult.length > 0" class="mt-4 space-y-2">
+                            <div v-for="(slogan, idx) in aiSlogansResult" :key="idx" class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                                <span class="text-xs font-medium text-slate-800">"{{ slogan }}"</span>
+                                <button @click="applySlogan(slogan)" class="text-xs px-2.5 py-1 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600">
+                                    ใช้สโลแกนนี้
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- MODAL: ADD/EDIT MENU ITEM -->
+        <div v-if="showMenuModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm no-print">
+            <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="font-bold text-slate-900 text-lg">
+                        {{ editingItem ? 'แก้ไขรายการอาหาร' : 'เพิ่มรายการอาหารใหม่' }}
+                    </h3>
+                    <button @click="showMenuModal = false" class="text-slate-400 hover:text-slate-600 text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4 text-sm">
+                    <div>
+                        <label class="block font-medium text-slate-700 mb-1">ชื่ออาหาร <span class="text-red-500">*</span></label>
+                        <input type="text" v-model="menuForm.name" placeholder="เช่น ส้มตำไทยไข่เค็ม" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">ราคา (บาท) <span class="text-red-500">*</span></label>
+                            <input type="number" v-model.number="menuForm.price" min="0" placeholder="60" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">หมวดหมู่</label>
+                            <select v-model="menuForm.category" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                                <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-medium text-slate-700 mb-1">รายละเอียด / วัตถุดิบหลัก</label>
+                        <textarea v-model="menuForm.description" rows="2" placeholder="เช่น เส้นมะละกอกรอบ ถั่วสิสงคั่ว ไข่เค็มกลมกล่อม" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">แท็กป้ายกำกับ</label>
+                            <select v-model="menuForm.badge" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                                <option value="">- ไม่มี -</option>
+                                <option value="🌟 แนะนำ">🌟 แนะนำ</option>
+                                <option value="🔥 ขายดี">🔥 ขายดี</option>
+                                <option value="🥬 เจ / มังสวิรัติ">🥬 เจ</option>
+                                <option value="🆕 เมนูใหม่">🆕 เมนูใหม่</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center pt-6 space-x-2">
+                            <input type="checkbox" id="spicyCheck" v-model="menuForm.isSpicy" class="w-4 h-4 text-orange-500 rounded">
+                            <label for="spicyCheck" class="text-slate-700 cursor-pointer">🌶️ เมนูเผ็ดรสจัด</label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-medium text-slate-700 mb-1">URL รูปภาพอาหาร</label>
+                        <input type="text" v-model="menuForm.image" placeholder="https://images.unsplash.com/..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-orange-500">
+                        <p class="text-[11px] text-slate-400 mt-1">สามารถใส่ลิงก์รูปภาพ หรือใช้ภาพเริ่มต้นระบบได้</p>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end space-x-3">
+                    <button @click="showMenuModal = false" class="px-4 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium">
+                        ยกเลิก
+                    </button>
+                    <button @click="saveMenuItem" class="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold shadow-sm">
+                        บันทึกรายการ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: CATEGORIES MANAGEMENT -->
+        <div v-if="showCategoryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm no-print">
+            <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="font-bold text-slate-900 text-lg">จัดการหมวดหมู่เมนู</h3>
+                    <button @click="showCategoryModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="flex space-x-2">
+                    <input type="text" v-model="newCategoryInput" placeholder="เพิ่มหมวดหมู่ใหม่ เช่น ของหวาน" class="flex-1 px-3.5 py-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500">
+                    <button @click="addCategory" class="px-4 py-2 bg-orange-500 text-white font-bold rounded-xl text-sm hover:bg-orange-600">
+                        เพิ่ม
+                    </button>
+                </div>
+
+                <div class="space-y-2 max-h-60 overflow-y-auto">
+                    <div v-for="cat in categories" :key="cat" class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl text-sm">
+                        <span class="font-medium text-slate-800">{{ cat }}</span>
+                        <button @click="removeCategory(cat)" class="text-red-500 hover:text-red-700 text-xs p-1">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2 text-right">
+                    <button @click="showCategoryModal = false" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-sm">
+                        เสร็จสิ้น
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: CUSTOMER ORDER SUMMARY (CART) -->
+        <div v-if="showOrderModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm no-print">
+            <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="font-bold text-slate-900 text-lg">สรุปรายการที่สั่ง</h3>
+                    <button @click="showOrderModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-3 max-h-64 overflow-y-auto">
+                    <div v-for="c in cart" :key="c.id" class="flex justify-between items-center text-sm border-b border-slate-100 pb-2">
+                        <div>
+                            <div class="font-bold text-slate-800">{{ c.name }}</div>
+                            <div class="text-xs text-slate-500">฿{{ c.price }} × {{ c.qty }}</div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button @click="updateCartQty(c, -1)" class="w-6 h-6 rounded bg-slate-100 font-bold flex items-center justify-center">-</button>
+                            <span class="text-xs font-bold">{{ c.qty }}</span>
+                            <button @click="updateCartQty(c, 1)" class="w-6 h-6 rounded bg-slate-100 font-bold flex items-center justify-center">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-100 pt-3 flex justify-between font-bold text-base">
+                    <span>ราคารวมทั้งหมด</span>
+                    <span class="text-orange-600">฿{{ totalCartPrice }}</span>
+                </div>
+
+                <button @click="confirmSimulatedOrder" class="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold rounded-xl shadow-md">
+                    ส่งรายการเข้าห้องครัว (จำลอง)
+                </button>
+            </div>
+        </div>
+
+        <!-- PRINTABLE STAND CARD (HIDDEN UNTIL PRINT) -->
+        <div id="print-area" class="hidden print-only p-8">
+            <div class="w-full max-w-md mx-auto border-2 border-slate-900 p-8 rounded-3xl text-center space-y-4">
+                <h1 class="text-3xl font-bold">{{ store.name }}</h1>
+                <p class="text-sm text-slate-600">{{ store.tagline }}</p>
+                <div v-if="selectedTableNumber !== 'GENERAL'" class="text-xl font-bold bg-slate-100 p-2 rounded-xl inline-block">
+                    โต๊ะที่ {{ selectedTableNumber }}
+                </div>
+                <h2 class="text-lg font-semibold text-orange-600">{{ qrCardTitle }}</h2>
+                <div id="print-qrcode-container" class="flex justify-center my-4"></div>
+                <p class="text-xs text-slate-500">{{ qrCardSubtext }}</p>
+                <p v-if="store.wifi" class="text-xs font-mono">Wi-Fi: {{ store.wifi }}</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                // Tab state
+                const activeTab = ref('info');
+
+                // Store info
+                const store = ref({
+                    name: 'แซ่บเวอร์ อีสานสตรีทฟู้ด',
+                    tagline: 'ส้มตำ ต้มแซ่บ ไก่ย่างเขาสวนกวาง รสเด็ดสะท้านลิ้น',
+                    phone: '089-123-4567',
+                    wifi: 'ZaapVer-5G (pass: 88888888)',
+                    address: '123 ถนนมิตรภาพ อ.เมือง จ.ขอนแก่น',
+                    totalTables: 12,
+                    themeColor: 'orange'
+                });
+
+                const themeColors = [
+                    { id: 'orange', name: 'ชาไทยส้ม', value: 'orange', hex: '#f97316' },
+                    { id: 'emerald', name: 'มัทฉะเขียว', value: 'emerald', hex: '#10b981' },
+                    { id: 'rose', name: 'พริกแดง', value: 'rose', hex: '#f43f5e' },
+                    { id: 'amber', name: 'กาแฟน้ำตาล', value: 'amber', hex: '#d97706' },
+                    { id: 'slate', name: 'ดำมินิมอล', value: 'slate', hex: '#334155' }
+                ];
+
+                // Categories
+                const categories = ref(['อาหารจานหลัก', 'ส้มตำ & ยำ', 'ของทอด & ต้ม', 'เครื่องดื่ม']);
+                const selectedCategoryFilter = ref('ALL');
+
+                // Menu items dataset
+                const menuItems = ref([
+                    {
+                        id: 1,
+                        name: 'ส้มตำไทยไข่เค็ม',
+                        price: 70,
+                        category: 'ส้มตำ & ยำ',
+                        description: 'มะละกอกรอบ น้ำตำรสอมเปรี้ยวอมหวาน หอมถั่วสิสงคั่วสดใหม่ เสิร์ฟพร้อมไข่เค็มเต็มฟอง',
+                        badge: '🔥 ขายดี',
+                        isSpicy: true,
+                        image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=500&q=80',
+                        available: true
+                    },
+                    {
+                        id: 2,
+                        name: 'ไก่ย่างสูตรวิเชียรบุรี (ครึ่งตัว)',
+                        price: 130,
+                        category: 'อาหารจานหลัก',
+                        description: 'ไก่ย่างหมักสมุนไพรไทยขมิ้นพริกไทยดำ หนังกรอบเนื้อนุ่ม เสิร์ฟคู่แจ่วรสเด็ด',
+                        badge: '🌟 แนะนำ',
+                        isSpicy: false,
+                        image: 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=500&q=80',
+                        available: true
+                    },
+                    {
+                        id: 3,
+                        name: 'ต้มแซ่บกระดูกอ่อน',
+                        price: 110,
+                        category: 'ของทอด & ต้ม',
+                        description: 'ต้มแซ่บน้ำใสเคี่ยวสมุนไพร ข่า ตะไคร้ ใบมะกรูด กระดูกอ่อนเคี่ยวจนเปื่อยนุ่ม',
+                        badge: '🔥 ขายดี',
+                        isSpicy: true,
+                        image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=500&q=80',
+                        available: true
+                    },
+                    {
+                        id: 4,
+                        name: 'ชาไทยเย็นตรามือ',
+                        price: 45,
+                        category: 'เครื่องดื่ม',
+                        description: 'ชาไทยรสเข้มข้น หอมกลิ่นชาแท้ ชงสดใหม่แก้วต่อแก้ว หวานมันกำลังดี',
+                        badge: '',
+                        isSpicy: false,
+                        image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=500&q=80',
+                        available: true
+                    }
+                ]);
+
+                // QR Code Options
+                const selectedTableNumber = ref('GENERAL');
+                const qrCardTitle = ref('สแกนเพื่อดูเมนูอาหาร & สั่งอาหาร');
+                const qrCardSubtext = ref('ใช้กล้องสมาร์ตโฟนสแกน QR Code ด้านบนได้ทันที');
+                const cardStyle = ref('modern');
+
+                // Customer Simulator State
+                const customerSearchQuery = ref('');
+                const customerCategoryFilter = ref('ALL');
+                const cart = ref([]);
+                const showOrderModal = ref(false);
+
+                // Modals Controls
+                const showMenuModal = ref(false);
+                const showCategoryModal = ref(false);
+                const editingItem = ref(null);
+                const newCategoryInput = ref('');
+
+                // Menu Form
+                const menuForm = ref({
+                    name: '',
+                    price: 0,
+                    category: 'อาหารจานหลัก',
+                    description: '',
+                    badge: '',
+                    isSpicy: false,
+                    image: '',
+                    available: true
+                });
+
+                // AI Assistant State
+                const aiPromptDish = ref('เมนูอีสานแซ่บๆ หรือเมนูฟิวชั่น');
+                const isAiLoading = ref(false);
+                const aiDishesResult = ref([]);
+                const aiPromptSlogan = ref('ร้านอาหารไทยอีสานแซ่บจัดจ้าน');
+                const isAiLoadingSlogan = ref(false);
+                const aiSlogansResult = ref([]);
+
+                // Computed
+                const filteredMenuItems = computed(() => {
+                    if (selectedCategoryFilter.value === 'ALL') return menuItems.value;
+                    return menuItems.value.filter(i => i.category === selectedCategoryFilter.value);
+                });
+
+                const customerMenuItems = computed(() => {
+                    return menuItems.value.filter(item => {
+                        const matchCat = customerCategoryFilter.value === 'ALL' || item.category === customerCategoryFilter.value;
+                        const matchQuery = item.name.toLowerCase().includes(customerSearchQuery.value.toLowerCase()) ||
+                                           (item.description && item.description.toLowerCase().includes(customerSearchQuery.value.toLowerCase()));
+                        return matchCat && matchQuery;
+                    });
+                });
+
+                const totalCartItems = computed(() => {
+                    return cart.value.reduce((sum, item) => sum + item.qty, 0);
+                });
+
+                const totalCartPrice = computed(() => {
+                    return cart.value.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                });
+
+                // Methods
+                const handleImageError = (e) => {
+                    e.target.src = 'https://placehold.co/400x300/f97316/ffffff?text=Delicious+Food';
+                };
+
+                const openAddMenuModal = () => {
+                    editingItem.value = null;
+                    menuForm.value = {
+                        name: '',
+                        price: 50,
+                        category: categories.value[0] || 'อาหารจานหลัก',
+                        description: '',
+                        badge: '',
+                        isSpicy: false,
+                        image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80',
+                        available: true
+                    };
+                    showMenuModal.value = true;
+                };
+
+                const openEditMenuModal = (item) => {
+                    editingItem.value = item;
+                    menuForm.value = { ...item };
+                    showMenuModal.value = true;
+                };
+
+                const saveMenuItem = () => {
+                    if (!menuForm.value.name || !menuForm.value.price) {
+                        alert('กรุณากรอกชื่ออาหารและราคาให้ครบถ้วน');
+                        return;
+                    }
+                    if (editingItem.value) {
+                        const idx = menuItems.value.findIndex(i => i.id === editingItem.value.id);
+                        if (idx !== -1) {
+                            menuItems.value[idx] = { ...editingItem.value, ...menuForm.value };
+                        }
+                    } else {
+                        menuItems.value.push({
+                            id: Date.now(),
+                            ...menuForm.value
+                        });
+                    }
+                    showMenuModal.value = false;
+                };
+
+                const deleteMenuItem = (id) => {
+                    if (confirm('คุณต้องการลบรายการอาหารนี้ใช่หรือไม่?')) {
+                        menuItems.value = menuItems.value.filter(i => i.id !== id);
+                    }
+                };
+
+                const toggleAvailability = (item) => {
+                    item.available = !item.available;
+                };
+
+                const openCategoryModal = () => {
+                    showCategoryModal.value = true;
+                };
+
+                const addCategory = () => {
+                    if (newCategoryInput.value.trim() && !categories.value.includes(newCategoryInput.value.trim())) {
+                        categories.value.push(newCategoryInput.value.trim());
+                        newCategoryInput.value = '';
+                    }
+                };
+
+                const removeCategory = (cat) => {
+                    categories.value = categories.value.filter(c => c !== cat);
+                };
+
+                // Cart operations
+                const addToCart = (item) => {
+                    const existing = cart.value.find(c => c.id === item.id);
+                    if (existing) {
+                        existing.qty += 1;
+                    } else {
+                        cart.value.push({
+                            id: item.id,
+                            name: item.name,
+                            price: item.price,
+                            qty: 1
+                        });
+                    }
+                };
+
+                const updateCartQty = (cartItem, delta) => {
+                    cartItem.qty += delta;
+                    if (cartItem.qty <= 0) {
+                        cart.value = cart.value.filter(c => c.id !== cartItem.id);
+                    }
+                };
+
+                const confirmSimulatedOrder = () => {
+                    confetti({
+                        particleCount: 80,
+                        spread: 60,
+                        origin: { y: 0.7 }
+                    });
+                    alert(`ส่งรายการอาหารสำเร็จ! (โต๊ะ ${selectedTableNumber.value === 'GENERAL' ? 'ทั่วไป' : selectedTableNumber.value})\nขอบคุณที่ใช้บริการครับ`);
+                    cart.value = [];
+                    showOrderModal.value = false;
+                };
+
+                // QR Code Renderer
+                const generateQR = () => {
+                    nextTick(() => {
+                        const container = document.getElementById('qrcode-container');
+                        if (!container) return;
+                        container.innerHTML = '';
+                        
+                        // Target payload URL simulated
+                        const targetUrl = window.location.href.split('#')[0] + `?table=${selectedTableNumber.value}`;
+
+                        new QRCode(container, {
+                            text: targetUrl,
+                            width: 180,
+                            height: 180,
+                            colorDark : "#0f172a",
+                            colorLight : "#ffffff",
+                            correctLevel : QRCode.CorrectLevel.H
+                        });
+                    });
+                };
+
+                const downloadQRCode = () => {
+                    const img = document.querySelector('#qrcode-container img');
+                    if (img) {
+                        const link = document.createElement('a');
+                        link.download = `QR-Menu-${store.value.name}-Table${selectedTableNumber.value}.png`;
+                        link.href = img.src;
+                        link.click();
+                    } else {
+                        alert('กรุณารอระบบสร้าง QR Code สักครู่');
+                    }
+                };
+
+                const printStandee = () => {
+                    // Populate print area QR Code
+                    const printContainer = document.getElementById('print-qrcode-container');
+                    if (printContainer) {
+                        printContainer.innerHTML = '';
+                        const targetUrl = window.location.href.split('#')[0] + `?table=${selectedTableNumber.value}`;
+                        new QRCode(printContainer, {
+                            text: targetUrl,
+                            width: 200,
+                            height: 200,
+                            colorDark : "#000000",
+                            colorLight : "#ffffff"
+                        });
+                    }
+                    setTimeout(() => {
+                        window.print();
+                    }, 300);
+                };
+
+                // Gemini AI Integration
+                const generateAIDishes = async () => {
+                    isAiLoading.value = true;
+                    try {
+                        const apiKey = ""; // Canvas runtime injection
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                        const prompt = `คุณคือเชฟมืออาชีพ ช่วยคิดเมนูอาหารเด็ดๆ 3 รายการสำหรับร้านแนว "${aiPromptDish.value}". ตอบกลับเป็นรูปแบบ JSON array เท่านั้น มีพร็อพเพอร์ตี้: "name", "price" (ตัวเลขบาท), "description" (คำบรรยายชวนหิว 1-2 ประโยค), "category" (เช่น อาหารจานหลัก, ส้มตำ & ยำ, เครื่องดื่ม)`;
+
+                        const payload = {
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: "application/json"
+                            }
+                        };
+
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await response.json();
+                        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) {
+                            aiDishesResult.value = JSON.parse(text);
+                        }
+                    } catch (err) {
+                        console.error('AI Dish generation error:', err);
+                        // Fallback sample
+                        aiDishesResult.value = [
+                            { name: 'ส้มตำหลวงพระบางกุ้งสด', price: 120, description: 'เส้นฝานบางกรอบ รสปลาร้านัวหอม กุ้งสดตัวโตๆ', category: 'ส้มตำ & ยำ' },
+                            { name: 'หมูกรอบคั่วพริกเกลือสวน', price: 150, description: 'หมูกรอบหนังฟูกรุบกรอบ คั่วพริกขี้หนูสวนสดหอมกระเทียม', category: 'อาหารจานหลัก' }
+                        ];
+                    } finally {
+                        isAiLoading.value = false;
+                    }
+                };
+
+                const addAiDishToMenu = (dish) => {
+                    menuItems.value.push({
+                        id: Date.now(),
+                        name: dish.name,
+                        price: dish.price,
+                        category: dish.category || 'อาหารจานหลัก',
+                        description: dish.description,
+                        badge: '🌟 AI แนะนำ',
+                        isSpicy: dish.description.includes('เผ็ด') || dish.description.includes('พริก'),
+                        image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80',
+                        available: true
+                    });
+                    if (!categories.value.includes(dish.category)) {
+                        categories.value.push(dish.category);
+                    }
+                    alert(`เพิ่มเมนู "${dish.name}" ลงในระบบเรียบร้อยแล้ว`);
+                };
+
+                const generateAISlogans = async () => {
+                    isAiLoadingSlogan.value = true;
+                    try {
+                        const apiKey = "";
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                        const prompt = `ช่วยคิดสโลแกนร้านอาหารสั้นๆ ติดหู 4 สโลแกน สำหรับร้านแนว "${aiPromptSlogan.value}". ตอบกลับเป็น JSON Array ของ string สโลแกนภาษาไทย`;
+
+                        const payload = {
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: "application/json"
+                            }
+                        };
+
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await response.json();
+                        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) {
+                            aiSlogansResult.value = JSON.parse(text);
+                        }
+                    } catch (err) {
+                        aiSlogansResult.value = [
+                            'รสชาติอีสานแท้ แซ่บสะท้านเมือง',
+                            'วัตถุดิบสดใหม่ รสเด็ดจานต่อจาน',
+                            'อร่อยจนต้องบอกต่อ ส้มตำแซ่บอันดับหนึ่ง'
+                        ];
+                    } finally {
+                        isAiLoadingSlogan.value = false;
+                    }
+                };
+
+                const applySlogan = (slogan) => {
+                    store.value.tagline = slogan;
+                    alert('อัปเดตสโลแกนร้านเรียบร้อยแล้ว');
+                };
+
+                const loadPresetData = () => {
+                    store.value = {
+                        name: 'แซ่บเวอร์ อีสานสตรีทฟู้ด',
+                        tagline: 'ส้มตำ ต้มแซ่บ ไก่ย่างเขาสวนกวาง รสเด็ดสะท้านลิ้น',
+                        phone: '089-123-4567',
+                        wifi: 'ZaapVer-5G (pass: 88888888)',
+                        address: '123 ถนนมิตรภาพ อ.เมือง จ.ขอนแก่น',
+                        totalTables: 12,
+                        themeColor: 'orange'
+                    };
+                    categories.value = ['อาหารจานหลัก', 'ส้มตำ & ยำ', 'ของทอด & ต้ม', 'เครื่องดื่ม'];
+                    menuItems.value = [
+                        {
+                            id: 1,
+                            name: 'ส้มตำไทยไข่เค็ม',
+                            price: 70,
+                            category: 'ส้มตำ & ยำ',
+                            description: 'มะละกอกรอบ น้ำตำรสอมเปรี้ยวอมหวาน หอมถั่วสิสงคั่วสดใหม่ เสิร์ฟพร้อมไข่เค็มเต็มฟอง',
+                            badge: '🔥 ขายดี',
+                            isSpicy: true,
+                            image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=500&q=80',
+                            available: true
+                        },
+                        {
+                            id: 2,
+                            name: 'ไก่ย่างสูตรวิเชียรบุรี (ครึ่งตัว)',
+                            price: 130,
+                            category: 'อาหารจานหลัก',
+                            description: 'ไก่ย่างหมักสมุนไพรไทยขมิ้นพริกไทยดำ หนังกรอบเนื้อนุ่ม เสิร์ฟคู่แจ่วรสเด็ด',
+                            badge: '🌟 แนะนำ',
+                            isSpicy: false,
+                            image: 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=500&q=80',
+                            available: true
+                        },
+                        {
+                            id: 3,
+                            name: 'ต้มแซ่บกระดูกอ่อน',
+                            price: 110,
+                            category: 'ของทอด & ต้ม',
+                            description: 'ต้มแซ่บน้ำใสเคี่ยวสมุนไพร ข่า ตะไคร้ ใบมะกรูด กระดูกอ่อนเคี่ยวจนเปื่อยนุ่ม',
+                            badge: '🔥 ขายดี',
+                            isSpicy: true,
+                            image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=500&q=80',
+                            available: true
+                        },
+                        {
+                            id: 4,
+                            name: 'ชาไทยเย็นตรามือ',
+                            price: 45,
+                            category: 'เครื่องดื่ม',
+                            description: 'ชาไทยรสเข้มข้น หอมกลิ่นชาแท้ ชงสดใหม่แก้วต่อแก้ว หวานมันกำลังดี',
+                            badge: '',
+                            isSpicy: false,
+                            image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=500&q=80',
+                            available: true
+                        }
+                    ];
+                    alert('โหลดข้อมูลตัวอย่างเรียบร้อย');
+                };
+
+                // Watchers
+                watch([activeTab, selectedTableNumber, store], () => {
+                    if (activeTab.value === 'qr') {
+                        generateQR();
+                    }
+                }, { deep: true });
+
+                onMounted(() => {
+                    generateQR();
+                });
+
+                return {
+                    activeTab,
+                    store,
+                    themeColors,
+                    categories,
+                    selectedCategoryFilter,
+                    menuItems,
+                    filteredMenuItems,
+                    selectedTableNumber,
+                    qrCardTitle,
+                    qrCardSubtext,
+                    cardStyle,
+                    customerSearchQuery,
+                    customerCategoryFilter,
+                    customerMenuItems,
+                    cart,
+                    totalCartItems,
+                    totalCartPrice,
+                    showOrderModal,
+                    showMenuModal,
+                    showCategoryModal,
+                    editingItem,
+                    newCategoryInput,
+                    menuForm,
+                    aiPromptDish,
+                    isAiLoading,
+                    aiDishesResult,
+                    aiPromptSlogan,
+                    isAiLoadingSlogan,
+                    aiSlogansResult,
+                    handleImageError,
+                    openAddMenuModal,
+                    openEditMenuModal,
+                    saveMenuItem,
+                    deleteMenuItem,
+                    toggleAvailability,
+                    openCategoryModal,
+                    addCategory,
+                    removeCategory,
+                    addToCart,
+                    updateCartQty,
+                    confirmSimulatedOrder,
+                    downloadQRCode,
+                    printStandee,
+                    generateAIDishes,
+                    addAiDishToMenu,
+                    generateAISlogans,
+                    applySlogan,
+                    loadPresetData
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
